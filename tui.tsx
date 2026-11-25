@@ -22,9 +22,11 @@ export default Plugin.define({
     const skillCalls = new Set<string>();
     let offFooter: (() => void) | undefined;
     let offSidebar: (() => void) | undefined;
+    let disposed = false;
 
     // Slots do not observe signals, so redraw by re-registering them.
     function render(): void {
+      if (disposed) return;
       offFooter?.();
       offSidebar?.();
       offFooter = ctx.ui.slot({
@@ -45,6 +47,7 @@ export default Plugin.define({
     function update(): void {
       if (current && !timer) {
         timer = setInterval(() => {
+          if (disposed) return;
           frame++;
           render();
         }, 250);
@@ -61,6 +64,22 @@ export default Plugin.define({
       if (!used.includes(name)) used.push(name);
       current = name;
       update();
+    }
+
+    function finish(event: Event): void {
+      if (activeCall && event?.data?.id === activeCall) {
+        activeCall = "";
+        current = "";
+        update();
+      }
+    }
+
+    function idle(): void {
+      if (current) {
+        current = "";
+        activeCall = "";
+        update();
+      }
     }
 
     const stops = [
@@ -80,13 +99,6 @@ export default Plugin.define({
           cast(name);
         }
       }),
-      const finish = (event: Event) => {
-        if (activeCall && event?.data?.id === activeCall) {
-          activeCall = "";
-          current = "";
-          update();
-        }
-      },
       ctx.data.on("session.tool.success", finish),
       ctx.data.on("session.tool.failed", finish),
       ctx.data.on("session.execution.started", () => {
@@ -96,13 +108,6 @@ export default Plugin.define({
         skillCalls.clear();
         update();
       }),
-      const idle = () => {
-        if (current) {
-          current = "";
-          activeCall = "";
-          update();
-        }
-      },
       ctx.data.on("session.execution.succeeded", idle),
       ctx.data.on("session.execution.failed", idle),
       ctx.data.on("session.execution.interrupted", idle),
@@ -111,6 +116,7 @@ export default Plugin.define({
     render();
 
     return () => {
+      disposed = true;
       if (timer) clearInterval(timer);
       for (const stop of stops) stop?.();
       offFooter?.();
