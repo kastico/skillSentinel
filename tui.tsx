@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
 import { Plugin } from "@opencode/plugin/tui";
 
-type Event = { data?: { id?: string; name?: string; input?: unknown } };
+type Event = { data?: { name?: string; input?: unknown } };
 
 const RUNES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
