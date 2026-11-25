@@ -42,6 +42,15 @@ test("formatters are compact and readable", () => {
   assert.equal(core.formatDelta(0), "±0");
 });
 
+test("fit clips to width and shortScope abbreviates", () => {
+  assert.equal(core.fit("abcdef", 4), "abc…");
+  assert.equal(core.fit("abc", 4), "abc");
+  assert.equal(core.fit("abc", 0), "");
+  assert.equal(core.fit("abc", 20).length, 3);
+  assert.equal(core.shortScope("user", false), "U");
+  assert.equal(core.shortScope("plugin"), "plugin");
+});
+
 test("timeline appends, reads newest first, filters, and prunes", async () => {
   const now = Date.now();
   await core.appendRecord({ at: now, skill: "report", sessionID: "s1", project: "/work/alpha", injectedTokens: 100 });

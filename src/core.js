@@ -88,6 +88,20 @@ export function formatTime(timestamp) {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+/** Clip to a cell width instead of wrapping. */
+export function fit(value, width) {
+  const text = String(value ?? "");
+  const limit = num(width);
+  if (limit <= 0) return "";
+  return text.length <= limit ? text : text.slice(0, limit - 1) + "…";
+}
+
+const SHORT_SCOPES = { user: "U", project: "P", plugin: "B", unknown: "?" };
+
+export function shortScope(scope, wide = true) {
+  return wide ? scope || "?" : SHORT_SCOPES[scope] || "?";
+}
+
 export async function appendRecord(record) {
   await ensureDir();
   await appendFile(LOG_PATH, JSON.stringify(record) + "\n", "utf8");

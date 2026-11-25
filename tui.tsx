@@ -4,11 +4,13 @@ import { For, Show, createSignal } from "solid-js";
 import {
   appendRecord,
   classifyScope,
+  fit,
   formatDelta,
   formatTime,
   formatTokens,
   injectedTokens,
   readRecords,
+  shortScope,
   tokensFromUsage,
   type SkillActivation,
 } from "./src/core.js";
@@ -58,6 +60,9 @@ function TimelinePanel(props: { panel: any }) {
   const [rows, setRows] = createSignal<SkillActivation[]>([]);
   const [index, setIndex] = createSignal(0);
   const [filter, setFilter] = createSignal<"project" | "session" | "all">("project");
+  const width = () => props.panel.width || 80;
+  const compact = () => width() < 60;
+  const wide = () => width() >= 100;
 
   const project = String((context as any).location?.project?.canonical ?? (context as any).location?.directory ?? "");
   void readRecords({ limit: 200 }).then(setRows);
@@ -72,6 +77,24 @@ function TimelinePanel(props: { panel: any }) {
   const open = () => {
     const row = filtered()[index()];
     if (row) void context.ui.router.navigate({ type: "session", sessionID: row.sessionID });
+  };
+  const title = (row: SkillActivation) => row.sessionTitle || row.sessionID.slice(0, 8);
+
+  const tableRow = (row: SkillActivation, selected: boolean) => {
+    const withUsed = wide();
+    const timeW = 5;
+    const skillW = withUsed ? 18 : 12;
+    const scopeW = withUsed ? 7 : 1;
+    const injW = 6;
+    const usedW = 7;
+    const fixed = 2 + timeW + 1 + skillW + 1 + scopeW + 1 + injW + (withUsed ? 1 + usedW : 0) + 1;
+    const sessionW = Math.max(6, width() - fixed);
+    const used = row.usedTokensEstimate == null ? "-" : formatDelta(row.usedTokensEstimate);
+    return (
+      `${selected ? "›" : " "} ${fit(formatTime(row.at), timeW).padEnd(timeW)} ${fit(row.skill, skillW).padEnd(skillW)} ` +
+      `${fit(shortScope(row.scope, withUsed), scopeW).padEnd(scopeW)} ${fit(`~+${formatTokens(row.injectedTokens)}`, injW).padEnd(injW)}` +
+      `${withUsed ? ` ${fit(used, usedW).padEnd(usedW)}` : ""} ${fit(title(row), sessionW)}`
+    );
   };
 
   context.keymap.layer(() => ({
@@ -88,21 +111,50 @@ function TimelinePanel(props: { panel: any }) {
         enabled: () => props.panel.focused,
         run: () => setFilter((current) => (current === "project" ? "session" : current === "session" ? "all" : "project")),
       },
+      {
+        id: "skillsentinel.timeline.fullscreen",
+        title: "Fullscreen timeline",
+        bind: "F",
+        enabled: () => props.panel.focused,
+        run: () => props.panel.toggleFullscreen(),
+      },
       { id: "skillsentinel.timeline.close", title: "Close timeline", bind: "escape", enabled: () => props.panel.focused, run: () => props.panel.close() },
     ],
   }));
 
+  const stats = () => {
+    const list = filtered();
+    const injected = list.reduce((sum, row) => sum + (row.injectedTokens || 0), 0);
+    return `${list.length} events · ${new Set(list.map((row) => row.skill)).size} skills · ~${formatTokens(injected)} injected · [${filter()}]`;
+  };
+
   return (
     <box flexDirection="column">
-      <text fg={context.theme.text.base}>{`SkillSentinel · timeline · ${filter()} · ${filtered().length} events`}</text>
-      <For each={filtered().slice(0, 40)}>
-        {(row, rowIndex) => (
-          <text fg={context.theme.text.base}>
-            {`${rowIndex() === index() ? "›" : " "} ${formatTime(row.at)} ${row.skill.padEnd(18)} ${(row.scope || "?").padEnd(8)} ~+${formatTokens(row.injectedTokens)} ${row.sessionTitle || row.sessionID.slice(0, 8)}`}
-          </text>
-        )}
+      <text fg={context.theme.text.base} wrapMode="none" truncate>{fit(`SkillSentinel · timeline · ${filter()} · ${filtered().length} events`, width())}</text>
+      <Show when={!compact()}>
+        <text fg={context.theme.text.base} wrapMode="none" truncate>
+          {fit(wide() ? "  TIME  SKILL             SCOPE   INJ     USED    SESSION" : "  TIME  SKILL        S  INJ     SESSION", width())}
+        </text>
+        <text fg={context.theme.text.base} wrapMode="none" truncate>{"─".repeat(Math.min(width(), 120))}</text>
+      </Show>
+      <For each={filtered().slice(0, 25)}>
+        {(row, rowIndex) =>
+          compact() ? (
+            <box flexDirection="column">
+              <text fg={context.theme.text.base} wrapMode="none" truncate>
+                {`${rowIndex() === index() ? "›" : " "} ${fit(formatTime(row.at), 5)} ${fit(row.skill, Math.max(8, width() - 24))} ${shortScope(row.scope, false)} ~+${formatTokens(row.injectedTokens)}`}
+              </text>
+              <text fg={context.theme.text.base} wrapMode="none" truncate>{`   ${fit(title(row), Math.max(6, width() - 5))}`}</text>
+            </box>
+          ) : (
+            <text fg={context.theme.text.base} wrapMode="none" truncate>{tableRow(row, rowIndex() === index())}</text>
+          )
+        }
       </For>
-      <text fg={context.theme.text.base}>j/k move · return open · f filter · esc close</text>
+      <text fg={context.theme.text.base} wrapMode="none" truncate>{fit(stats(), width())}</text>
+      <text fg={context.theme.text.base} wrapMode="none" truncate>
+        {fit("j/k move · return open · f filter · F fullscreen · esc close", width())}
+      </text>
     </box>
   );
 }
@@ -159,10 +211,19 @@ export default Plugin.define({
         render: (props: any) => {
           const sessionID = props?.sessionID || currentSession;
           const turn = sessionID ? turns.get(sessionID) : undefined;
-          if (!turn?.currentName) return <text fg={ctx.theme.text.base}>{" "}</text>;
-          const elapsed = Math.max(0, Math.floor((Date.now() - turn.currentStarted) / 1000));
-          const delta = snapshot(sessionID) - turn.currentStartTokens;
-          return <text fg={ctx.theme.text.base}>{`${RUNES[frame % RUNES.length]} ${turn.currentName} ${elapsed}s ${formatDelta(delta)}`}</text>;
+          if (!turn?.currentName) return <text fg={ctx.theme.text.base} wrapMode="none" truncate>{" "}</text>;
+          const width = ctx.renderer.terminalWidth || 80;
+          const spinner = RUNES[frame % RUNES.length];
+          // The status slot is only a slice of the footer row; leave room for host indicators.
+          if (width < 80) return <text fg={ctx.theme.text.base} wrapMode="none" truncate>{`${spinner} ${turn.currentName.slice(0, 3)}`}</text>;
+          const room = width >= 110 ? 24 : 12;
+          const details = props?.showDetails !== false;
+          const elapsed = `${Math.max(0, Math.floor((Date.now() - turn.currentStarted) / 1000))}s`;
+          const delta = formatDelta(snapshot(sessionID) - turn.currentStartTokens);
+          let line = `${spinner} ${turn.currentName}`;
+          if (details && line.length + elapsed.length + 1 <= room) line += ` ${elapsed}`;
+          if (details && line.length + delta.length + 1 <= room) line += ` ${delta}`;
+          return <text fg={ctx.theme.text.base} wrapMode="none" truncate>{fit(line, room)}</text>;
         },
       });
     }
@@ -175,15 +236,20 @@ export default Plugin.define({
         render: (props: any) => {
           const sessionID = props?.sessionID || currentSession;
           const turn = sessionID ? turns.get(sessionID) : undefined;
+          // The slot has no width; the sidebar is roughly 30% of the terminal.
+          const width = Math.max(16, Math.floor((ctx.renderer.terminalWidth || 80) * 0.3));
+          const wide = width >= 42;
           return (
             <box flexDirection="column">
-              <text fg={ctx.theme.text.base}>Skills:</text>
+              <text fg={ctx.theme.text.base} wrapMode="none" truncate>Skills:</text>
               <For each={turn?.entries ?? []}>
-                {(entry) => (
-                  <text fg={ctx.theme.text.base}>
-                    {`${entry.name} · ${entry.scope} · ~${formatDelta(entry.injected)} ${entry.lastUsed ? formatDelta(entry.lastUsed) : ""} ×${entry.count}`}
-                  </text>
-                )}
+                {(entry) => {
+                  let line = entry.name;
+                  if (wide) line += ` · ${entry.scope} · ~${formatDelta(entry.injected)} ${entry.lastUsed ? formatDelta(entry.lastUsed) : ""} ×${entry.count}`;
+                  else if (width >= 28) line += ` ${shortScope(entry.scope, false)} ~${formatDelta(entry.injected)} ×${entry.count}`;
+                  else line += ` ×${entry.count}`;
+                  return <text fg={ctx.theme.text.base} wrapMode="none" truncate>{fit(line.trim(), width)}</text>;
+                }}
               </For>
             </box>
           );
@@ -203,6 +269,14 @@ export default Plugin.define({
         ),
       });
     }
+
+    // Slot inputs carry no width; redraw when the terminal changes size.
+    const onResize = () => {
+      renderFooter();
+      renderSidebar();
+      renderPanel();
+    };
+    ctx.renderer.on("resize", onResize);
 
     function updateTimer(): void {
       const active = [...turns.values()].some((turn) => turn.currentName);
@@ -368,6 +442,7 @@ export default Plugin.define({
     return () => {
       disposed = true;
       if (timer) clearInterval(timer);
+      ctx.renderer.off("resize", onResize);
       for (const stop of stops) stop?.();
       offFooter?.();
       offSidebar?.();

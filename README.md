@@ -8,13 +8,13 @@ Right sidebar:       Skills:
                      find-skills · user · ~+1.3k +7.2k ×1
 ```
 
-- **Bottom bar** — spinner, skill name, elapsed seconds, and the estimated token delta since the skill started.
+- **Bottom bar** — spinner, skill name, elapsed seconds, and the estimated token delta since the skill started. In narrow terminals it drops the numbers and shortens the name; text never wraps.
 - **Right sidebar** — one line per skill used in the current turn, with:
   - **scope**: `user` (global skills), `project` (`.opencode/skills`), or `plugin`
   - **injected**: estimated tokens from the skill body (`~+1.3k`)
   - **used** (after the turn): estimated tokens added while the skill was active (`+7.2k`)
   - **×N**: how many times it was used in the turn
-- **Timeline** — `/skills` opens a panel with every activation recorded for the project. `j`/`k` move, `return` opens the originating session, `f` cycles project → session → all, `esc` closes.
+- **Timeline** — `/sentinel` opens a width-aware table of every activation recorded for the project. `j`/`k` move, `return` opens the originating session, `f` cycles project → session → all, `F` toggles fullscreen, `esc` closes. Narrow panels switch to two-line cards; cells are clipped, never wrapped.
 
 Token numbers are estimates: "injected" is `skill body chars ÷ 4`, and "used" is the change in session token counts between activations/turn end. Neither is provider billing.
 
