@@ -34,6 +34,7 @@ export default Plugin.define({
         append: "sidebar.content",
         render: () => (
           <box flexDirection="column">
+            <text fg={ctx.theme.text.base}>Skills:</text>
             {used.map((name) => <text fg={ctx.theme.text.base}>{name}</text>)}
           </box>
         ),
