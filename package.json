@@ -1,5 +1,5 @@
 {
-  "name": "skillmancer",
+  "name": "skillSentinel",
   "version": "1.0.0",
   "description": "OpenCode TUI plugin that shows which skill is being used live and which ones were used this run.",
   "type": "module",

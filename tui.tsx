@@ -12,7 +12,7 @@ function skillName(input: unknown): string | undefined {
 }
 
 export default Plugin.define({
-  id: "skillmancer",
+  id: "skillSentinel",
   setup(ctx) {
     let used: string[] = [];
     let current = "";

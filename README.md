@@ -1,4 +1,4 @@
-# Skillmancer
+# SkillSentinel
 
 A small OpenCode TUI plugin: spinner + skill name in the bottom bar, plain skill list in the sidebar.
 
@@ -16,7 +16,7 @@ Requires OpenCode 2.x. Add the path to `~/.config/opencode/cli.json`:
 
 ```json
 {
-  "plugins": ["/absolute/path/to/skillmancer"]
+  "plugins": ["/absolute/path/to/skillSentinel"]
 }
 ```
 
