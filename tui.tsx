@@ -5,10 +5,13 @@ type Event = { data?: { id?: string; name?: string; input?: unknown } };
 
 const RUNES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
+// The skill tool sends only { id } or { name } — no tool name on the event.
 function skillName(input: unknown): string | undefined {
   if (!input || typeof input !== "object") return undefined;
-  const value = (input as Record<string, unknown>).name ?? (input as Record<string, unknown>).id;
-  return typeof value === "string" && value ? value : undefined;
+  const value = input as Record<string, unknown>;
+  if (Object.keys(value).some((key) => key !== "id" && key !== "name")) return undefined;
+  const name = value.name ?? value.id;
+  return typeof name === "string" && name ? name : undefined;
 }
 
 export default Plugin.define({
@@ -16,10 +19,8 @@ export default Plugin.define({
   setup(ctx) {
     let used: string[] = [];
     let current = "";
-    let activeCall = "";
     let frame = 0;
     let timer: ReturnType<typeof setInterval> | null = null;
-    const skillCalls = new Set<string>();
     let offFooter: (() => void) | undefined;
     let offSidebar: (() => void) | undefined;
     let disposed = false;
@@ -66,18 +67,9 @@ export default Plugin.define({
       update();
     }
 
-    function finish(event: Event): void {
-      if (activeCall && event?.data?.id === activeCall) {
-        activeCall = "";
-        current = "";
-        update();
-      }
-    }
-
     function idle(): void {
       if (current) {
         current = "";
-        activeCall = "";
         update();
       }
     }
@@ -87,25 +79,13 @@ export default Plugin.define({
         const name = (event as any)?.data?.name;
         if (typeof name === "string" && name) cast(name);
       }),
-      // V2 sends the tool name in `input.started` and the input in `called`.
-      ctx.data.on("session.tool.input.started", (event: Event) => {
-        if (event?.data?.name === "skill" && event.data.id) skillCalls.add(event.data.id);
-      }),
       ctx.data.on("session.tool.called", (event: Event) => {
-        if (event?.data?.name !== "skill" && !skillCalls.delete(event?.data?.id ?? "")) return;
         const name = skillName(event.data?.input);
-        if (name) {
-          activeCall = event?.data?.id ?? "";
-          cast(name);
-        }
+        if (name) cast(name);
       }),
-      ctx.data.on("session.tool.success", finish),
-      ctx.data.on("session.tool.failed", finish),
       ctx.data.on("session.execution.started", () => {
         used = [];
         current = "";
-        activeCall = "";
-        skillCalls.clear();
         update();
       }),
       ctx.data.on("session.execution.succeeded", idle),
