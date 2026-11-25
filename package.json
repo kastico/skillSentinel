@@ -1,0 +1,22 @@
+{
+  "name": "skillmancer",
+  "version": "1.0.0",
+  "description": "OpenCode TUI plugin that shows which skill is being used live and which ones were used this run.",
+  "type": "module",
+  "exports": {
+    "./tui": "./tui.tsx"
+  },
+  "keywords": [
+    "opencode",
+    "tui-plugin",
+    "skills",
+    "status"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@opencode/plugin": ">=2.0.0",
+    "@opentui/core": ">=0.6.6",
+    "@opentui/solid": ">=0.6.6",
+    "solid-js": ">=1.9.0"
+  }
+}
