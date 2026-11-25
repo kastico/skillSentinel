@@ -7,7 +7,7 @@
     "./tui": "./tui.tsx"
   },
   "bin": {
-    "skillsentinel": "./src/cli.js"
+    "skillsentinel": "src/cli.js"
   },
   "files": [
     "tui.tsx",
