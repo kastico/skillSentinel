@@ -16,6 +16,7 @@ export default Plugin.define({
   setup(ctx) {
     let used: string[] = [];
     let current = "";
+    let activeCall = "";
     let frame = 0;
     let timer: ReturnType<typeof setInterval> | null = null;
     const skillCalls = new Set<string>();
@@ -74,14 +75,37 @@ export default Plugin.define({
       ctx.data.on("session.tool.called", (event: Event) => {
         if (event?.data?.name !== "skill" && !skillCalls.delete(event?.data?.id ?? "")) return;
         const name = skillName(event.data?.input);
-        if (name) cast(name);
+        if (name) {
+          activeCall = event?.data?.id ?? "";
+          cast(name);
+        }
       }),
+      const finish = (event: Event) => {
+        if (activeCall && event?.data?.id === activeCall) {
+          activeCall = "";
+          current = "";
+          update();
+        }
+      },
+      ctx.data.on("session.tool.success", finish),
+      ctx.data.on("session.tool.failed", finish),
       ctx.data.on("session.execution.started", () => {
         used = [];
         current = "";
+        activeCall = "";
         skillCalls.clear();
         update();
       }),
+      const idle = () => {
+        if (current) {
+          current = "";
+          activeCall = "";
+          update();
+        }
+      },
+      ctx.data.on("session.execution.succeeded", idle),
+      ctx.data.on("session.execution.failed", idle),
+      ctx.data.on("session.execution.interrupted", idle),
     ];
 
     render();
