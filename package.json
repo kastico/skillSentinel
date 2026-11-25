@@ -1,6 +1,6 @@
 {
   "name": "@kastico/skillsentinel",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "OpenCode TUI plugin that shows skills live, their context cost, and a project timeline.",
   "type": "module",
   "exports": {

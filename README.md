@@ -42,6 +42,40 @@ For local development, point the config at a checkout instead:
 
 Use one method at a time — two entries load two instances and duplicate the indicator.
 
+## Configure
+
+Edit `~/.config/opencode/cli.json` and replace the string entry with the object form. Saving the file reloads the plugin automatically.
+
+```jsonc
+{
+  "plugins": [
+    {
+      "package": "@kastico/skillsentinel",
+      "options": {
+        "scopeStyle": "icons",       // "auto" | "word" | "short" | "icons" | "off"
+        "icons": {                   // optional; Unicode defaults
+          "user": "◎", "project": "▣", "plugin": "⬡", "unknown": "?"
+        },
+        "names": {                   // display names; history stays keyed by real skill id
+          "omarchy": "OM", "find-skills": "FS"
+        },
+        "panelStyle": "auto",        // "auto" | "table" | "cards" | "minimal"
+        "colors": {
+          "preset": "default",       // "default" | "mono" | "vivid"
+          "footer": "#ffcc00",       // optional hex overrides; invalid → theme default
+          "sidebar": "#8be9fd",
+          "selected": "#50fa7b"
+        }
+      }
+    }
+  ]
+}
+```
+
+- `scopeStyle: "off"` hides the scope entirely; `icons` uses the Unicode set above (override any glyph in `icons`).
+- `panelStyle` overrides the width-aware defaults: `table` forces columns, `cards` forces two-line rows, `minimal` keeps only time/skill/scope.
+- Colors are passed to OpenTUI; invalid values fall back to theme tokens.
+
 ## Timeline CLI
 
 The same records are written as JSONL to `~/.local/share/opencode/skillSentinel/timeline.jsonl` (override with `SKILLSENTINEL_DATA_DIR`).
@@ -51,6 +85,17 @@ npx skillsentinel timeline                       # current project
 npx skillsentinel timeline --all --since 7       # everything, last 7 days
 npx skillsentinel timeline --project skillSentinel --json
 npx skillsentinel timeline --prune 90            # keep 90 days
+npx skillsentinel stats                          # totals per skill
+npx skillsentinel stats --all --since 7 --json
+```
+
+```
+SkillSentinel stats — /home/kastico/Work/skillSentinel
+4 activations · 3 skills · ~27k used
+
+SKILL        USES  INJECTED  USED     SESSIONS  LAST
+omarchy      2     ~5.8k     ~14k     2         21:30
+report       1     ~1.2k     ~7.2k    1         21:28
 ```
 
 ```
@@ -64,7 +109,7 @@ TIME  SKILL               SCOPE     INJECTED   USED      SESSION
 
 ## How it works
 
-The whole TUI plugin is `tui.tsx`; shared logic and the store are in `src/core.js`, and the CLI is `src/cli.js`.
+The TUI plugin is `tui.tsx`; shared logic and the store are in `src/core.js`, config normalization in `src/config.js`, and the CLI is `src/cli.js`.
 
 **Detection** (`ctx.data.on`):
 | Event | Effect |

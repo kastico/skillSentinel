@@ -6,11 +6,12 @@ import {
   formatTokens,
   prune,
   readRecords,
+  summarize,
 } from "./core.js";
 
-const HELP = `SkillSentinel — skill usage timeline
+const HELP = `SkillSentinel — skill usage timeline and stats
 
-Usage: skillsentinel timeline [options]
+Usage: skillsentinel <timeline|stats> [options]
 
 Options:
   --project <path|name>  Filter by project (default: current directory)
@@ -37,8 +38,8 @@ function parse(argv) {
     else if (arg === "--prune") {
       const next = argv[i + 1];
       options.prune = next && /^\d+$/.test(next) ? Number(argv[++i]) : 90;
-    } else if (arg === "timeline") {
-      // Allow the natural `skillsentinel timeline` spelling.
+    } else if (arg === "timeline" || arg === "stats") {
+      options.command = arg;
     } else {
       throw new Error(`Unknown option: ${arg}`);
     }
@@ -48,6 +49,27 @@ function parse(argv) {
 
 function column(value, width) {
   return String(value ?? "").padEnd(width);
+}
+
+function printStats(rows, project) {
+  const summary = summarize(rows);
+  const used = rows.reduce((sum, row) => sum + (row.usedTokensEstimate || 0), 0);
+  console.log(`SkillSentinel stats${project ? ` — ${project}` : " — all projects"}`);
+  console.log(`${rows.length} activations · ${summary.length} skills · ~${formatTokens(used)} used`);
+  console.log("");
+  console.log(
+    column("SKILL", 16) + column("USES", 6) + column("INJECTED", 10) + column("USED", 9) + column("SESSIONS", 9) + "LAST",
+  );
+  for (const item of summary) {
+    console.log(
+      column(item.skill, 16) +
+        column(item.uses, 6) +
+        column(`~${formatTokens(item.injected)}`, 10) +
+        column(`~${formatTokens(item.used)}`, 9) +
+        column(item.sessions, 9) +
+        formatTime(item.last),
+    );
+  }
 }
 
 async function main() {
@@ -74,9 +96,13 @@ async function main() {
 
   const project = options.all ? undefined : options.project || process.cwd();
   const rows = await readRecords({ project, since: options.since, limit: options.limit });
-
   if (options.json) {
-    console.log(JSON.stringify(rows, null, 2));
+    console.log(JSON.stringify(options.command === "stats" ? summarize(rows) : rows, null, 2));
+    return;
+  }
+
+  if (options.command === "stats") {
+    printStats(rows, project);
     return;
   }
 

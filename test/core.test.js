@@ -51,6 +51,21 @@ test("fit clips to width and shortScope abbreviates", () => {
   assert.equal(core.shortScope("plugin"), "plugin");
 });
 
+test("summarize groups by skill and sorts by estimated use", () => {
+  const rows = [
+    { skill: "omarchy", at: 100, sessionID: "s1", injectedTokens: 100, usedTokensEstimate: 500 },
+    { skill: "report", at: 200, sessionID: "s1", injectedTokens: 50, usedTokensEstimate: 100 },
+    { skill: "omarchy", at: 300, sessionID: "s2", injectedTokens: 100, usedTokensEstimate: 400 },
+  ];
+  const summary = core.summarize(rows);
+  assert.deepEqual(summary.map((item) => item.skill), ["omarchy", "report"]);
+  assert.equal(summary[0].uses, 2);
+  assert.equal(summary[0].injected, 200);
+  assert.equal(summary[0].used, 900);
+  assert.equal(summary[0].sessions, 2);
+  assert.equal(summary[0].last, 300);
+});
+
 test("timeline appends, reads newest first, filters, and prunes", async () => {
   const now = Date.now();
   await core.appendRecord({ at: now, skill: "report", sessionID: "s1", project: "/work/alpha", injectedTokens: 100 });

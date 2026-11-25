@@ -32,6 +32,17 @@ export declare function formatDelta(value: number | undefined): string;
 export declare function formatTime(timestamp: number | undefined): string;
 export declare function fit(value: unknown, width: number): string;
 export declare function shortScope(scope: string | undefined, wide?: boolean): string;
+
+export interface SkillSummary {
+  skill: string;
+  uses: number;
+  injected: number;
+  used: number;
+  sessions: number;
+  first: number;
+  last: number;
+}
+export declare function summarize(records: readonly SkillActivation[]): SkillSummary[];
 export declare function appendRecord(record: SkillActivation): Promise<void>;
 export declare function readRecords(options?: { project?: string; since?: number; limit?: number }): Promise<SkillActivation[]>;
 export declare function prune(options?: { days?: number }): Promise<number>;

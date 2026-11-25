@@ -10,10 +10,10 @@ import {
   formatTokens,
   injectedTokens,
   readRecords,
-  shortScope,
   tokensFromUsage,
   type SkillActivation,
 } from "./src/core.js";
+import { displayName, readConfig, scopeLabel } from "./src/config.js";
 
 const PANEL_NAME = "skillsentinel.timeline";
 const RUNES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -57,12 +57,16 @@ function skillName(input: unknown): string | undefined {
 
 function TimelinePanel(props: { panel: any }) {
   const context = usePlugin();
+  const config = readConfig((context as any).options);
   const [rows, setRows] = createSignal<SkillActivation[]>([]);
   const [index, setIndex] = createSignal(0);
   const [filter, setFilter] = createSignal<"project" | "session" | "all">("project");
   const width = () => props.panel.width || 80;
-  const compact = () => width() < 60;
+  const compact = () => config.panelStyle === "cards" || (config.panelStyle === "auto" && width() < 60);
+  const minimal = () => config.panelStyle === "minimal";
   const wide = () => width() >= 100;
+  const muted = config.colors.sidebar || context.theme.text.base;
+  const active = config.colors.selected || context.theme.text.base;
 
   const project = String((context as any).location?.project?.canonical ?? (context as any).location?.directory ?? "");
   void readRecords({ limit: 200 }).then(setRows);
@@ -81,20 +85,24 @@ function TimelinePanel(props: { panel: any }) {
   const title = (row: SkillActivation) => row.sessionTitle || row.sessionID.slice(0, 8);
 
   const tableRow = (row: SkillActivation, selected: boolean) => {
-    const withUsed = wide();
+    const withUsed = wide() && !minimal();
     const timeW = 5;
     const skillW = withUsed ? 18 : 12;
-    const scopeW = withUsed ? 7 : 1;
+    const scopeW = withUsed ? 7 : 2;
     const injW = 6;
     const usedW = 7;
-    const fixed = 2 + timeW + 1 + skillW + 1 + scopeW + 1 + injW + (withUsed ? 1 + usedW : 0) + 1;
+    const fixed = 2 + timeW + 1 + skillW + 1 + scopeW + (minimal() ? 0 : 1 + injW + (withUsed ? 1 + usedW : 0) + 1);
     const sessionW = Math.max(6, width() - fixed);
     const used = row.usedTokensEstimate == null ? "-" : formatDelta(row.usedTokensEstimate);
-    return (
-      `${selected ? "›" : " "} ${fit(formatTime(row.at), timeW).padEnd(timeW)} ${fit(row.skill, skillW).padEnd(skillW)} ` +
-      `${fit(shortScope(row.scope, withUsed), scopeW).padEnd(scopeW)} ${fit(`~+${formatTokens(row.injectedTokens)}`, injW).padEnd(injW)}` +
-      `${withUsed ? ` ${fit(used, usedW).padEnd(usedW)}` : ""} ${fit(title(row), sessionW)}`
-    );
+    let line =
+      `${selected ? "›" : " "} ${fit(formatTime(row.at), timeW).padEnd(timeW)} ${fit(displayName(config, row.skill), skillW).padEnd(skillW)} ` +
+      `${fit(scopeLabel(config, row.scope, withUsed), scopeW).padEnd(scopeW)}`;
+    if (!minimal()) {
+      line += ` ${fit(`~+${formatTokens(row.injectedTokens)}`, injW).padEnd(injW)}`;
+      if (withUsed) line += ` ${fit(used, usedW).padEnd(usedW)}`;
+      line += ` ${fit(title(row), sessionW)}`;
+    }
+    return line;
   };
 
   context.keymap.layer(() => ({
@@ -128,31 +136,34 @@ function TimelinePanel(props: { panel: any }) {
     return `${list.length} events · ${new Set(list.map((row) => row.skill)).size} skills · ~${formatTokens(injected)} injected · [${filter()}]`;
   };
 
+  const header = () => {
+    if (minimal()) return "  TIME  SKILL        SCOPE";
+    return wide() ? "  TIME  SKILL             SCOPE   INJ     USED    SESSION" : "  TIME  SKILL        S  INJ     SESSION";
+  };
+
   return (
     <box flexDirection="column">
-      <text fg={context.theme.text.base} wrapMode="none" truncate>{fit(`SkillSentinel · timeline · ${filter()} · ${filtered().length} events`, width())}</text>
+      <text fg={muted} wrapMode="none" truncate>{fit(`SkillSentinel · timeline · ${filter()} · ${filtered().length} events`, width())}</text>
       <Show when={!compact()}>
-        <text fg={context.theme.text.base} wrapMode="none" truncate>
-          {fit(wide() ? "  TIME  SKILL             SCOPE   INJ     USED    SESSION" : "  TIME  SKILL        S  INJ     SESSION", width())}
-        </text>
-        <text fg={context.theme.text.base} wrapMode="none" truncate>{"─".repeat(Math.min(width(), 120))}</text>
+        <text fg={muted} wrapMode="none" truncate>{fit(header(), width())}</text>
+        <text fg={muted} wrapMode="none" truncate>{"─".repeat(Math.min(width(), 120))}</text>
       </Show>
       <For each={filtered().slice(0, 25)}>
         {(row, rowIndex) =>
           compact() ? (
             <box flexDirection="column">
-              <text fg={context.theme.text.base} wrapMode="none" truncate>
-                {`${rowIndex() === index() ? "›" : " "} ${fit(formatTime(row.at), 5)} ${fit(row.skill, Math.max(8, width() - 24))} ${shortScope(row.scope, false)} ~+${formatTokens(row.injectedTokens)}`}
+              <text fg={rowIndex() === index() ? active : muted} wrapMode="none" truncate>
+                {`${rowIndex() === index() ? "›" : " "} ${fit(formatTime(row.at), 5)} ${fit(displayName(config, row.skill), Math.max(8, width() - 24))} ${scopeLabel(config, row.scope, false)} ~+${formatTokens(row.injectedTokens)}`}
               </text>
-              <text fg={context.theme.text.base} wrapMode="none" truncate>{`   ${fit(title(row), Math.max(6, width() - 5))}`}</text>
+              <text fg={muted} wrapMode="none" truncate>{`   ${fit(title(row), Math.max(6, width() - 5))}`}</text>
             </box>
           ) : (
-            <text fg={context.theme.text.base} wrapMode="none" truncate>{tableRow(row, rowIndex() === index())}</text>
+            <text fg={rowIndex() === index() ? active : muted} wrapMode="none" truncate>{tableRow(row, rowIndex() === index())}</text>
           )
         }
       </For>
-      <text fg={context.theme.text.base} wrapMode="none" truncate>{fit(stats(), width())}</text>
-      <text fg={context.theme.text.base} wrapMode="none" truncate>
+      <text fg={muted} wrapMode="none" truncate>{fit(stats(), width())}</text>
+      <text fg={muted} wrapMode="none" truncate>
         {fit("j/k move · return open · f filter · F fullscreen · esc close", width())}
       </text>
     </box>
@@ -164,6 +175,7 @@ export default Plugin.define({
   async setup(ctx) {
     const location = ctx.location ?? ctx.data.location.default();
     const project = String((ctx as any).location?.project?.canonical ?? location?.directory ?? "");
+    const config = readConfig((ctx as any).options);
 
     const turns = new Map<string, Turn>();
     const latestTokens = new Map<string, number>();
@@ -211,19 +223,21 @@ export default Plugin.define({
         render: (props: any) => {
           const sessionID = props?.sessionID || currentSession;
           const turn = sessionID ? turns.get(sessionID) : undefined;
-          if (!turn?.currentName) return <text fg={ctx.theme.text.base} wrapMode="none" truncate>{" "}</text>;
+          const color = config.colors.footer || ctx.theme.text.base;
+          if (!turn?.currentName) return <text fg={color} wrapMode="none" truncate>{" "}</text>;
           const width = ctx.renderer.terminalWidth || 80;
           const spinner = RUNES[frame % RUNES.length];
+          const name = displayName(config, turn.currentName);
           // The status slot is only a slice of the footer row; leave room for host indicators.
-          if (width < 80) return <text fg={ctx.theme.text.base} wrapMode="none" truncate>{`${spinner} ${turn.currentName.slice(0, 3)}`}</text>;
+          if (width < 80) return <text fg={color} wrapMode="none" truncate>{`${spinner} ${name.slice(0, 3)}`}</text>;
           const room = width >= 110 ? 24 : 12;
           const details = props?.showDetails !== false;
           const elapsed = `${Math.max(0, Math.floor((Date.now() - turn.currentStarted) / 1000))}s`;
           const delta = formatDelta(snapshot(sessionID) - turn.currentStartTokens);
-          let line = `${spinner} ${turn.currentName}`;
+          let line = `${spinner} ${name}`;
           if (details && line.length + elapsed.length + 1 <= room) line += ` ${elapsed}`;
           if (details && line.length + delta.length + 1 <= room) line += ` ${delta}`;
-          return <text fg={ctx.theme.text.base} wrapMode="none" truncate>{fit(line, room)}</text>;
+          return <text fg={color} wrapMode="none" truncate>{fit(line, room)}</text>;
         },
       });
     }
@@ -239,17 +253,23 @@ export default Plugin.define({
           // The slot has no width; the sidebar is roughly 30% of the terminal.
           const width = Math.max(16, Math.floor((ctx.renderer.terminalWidth || 80) * 0.3));
           const wide = width >= 42;
+          const color = config.colors.sidebar || ctx.theme.text.base;
+          const parts = (entry: Entry) => {
+            const out = [displayName(config, entry.name)];
+            const scope = scopeLabel(config, entry.scope, wide);
+            if (scope) out.push(scope);
+            if (wide) {
+              out.push(`~${formatDelta(entry.injected)}`);
+              if (entry.lastUsed) out.push(formatDelta(entry.lastUsed));
+            } else if (width >= 28) out.push(`~${formatDelta(entry.injected)}`);
+            out.push(`×${entry.count}`);
+            return out.join(" · ");
+          };
           return (
             <box flexDirection="column">
-              <text fg={ctx.theme.text.base} wrapMode="none" truncate>Skills:</text>
+              <text fg={color} wrapMode="none" truncate>Skills:</text>
               <For each={turn?.entries ?? []}>
-                {(entry) => {
-                  let line = entry.name;
-                  if (wide) line += ` · ${entry.scope} · ~${formatDelta(entry.injected)} ${entry.lastUsed ? formatDelta(entry.lastUsed) : ""} ×${entry.count}`;
-                  else if (width >= 28) line += ` ${shortScope(entry.scope, false)} ~${formatDelta(entry.injected)} ×${entry.count}`;
-                  else line += ` ×${entry.count}`;
-                  return <text fg={ctx.theme.text.base} wrapMode="none" truncate>{fit(line.trim(), width)}</text>;
-                }}
+                {(entry) => <text fg={color} wrapMode="none" truncate>{fit(parts(entry), width)}</text>}
               </For>
             </box>
           );

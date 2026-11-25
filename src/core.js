@@ -134,6 +134,36 @@ export async function readRecords({ project, since, limit = 200 } = {}) {
   return rows.slice(0, limit);
 }
 
+/** Group activations by skill, biggest estimated cost first. */
+export function summarize(records) {
+  const bySkill = new Map();
+  for (const record of records) {
+    const skill = record.skill || "?";
+    let item = bySkill.get(skill);
+    if (!item) {
+      item = { skill, uses: 0, injected: 0, used: 0, sessions: new Set(), first: record.at, last: record.at };
+      bySkill.set(skill, item);
+    }
+    item.uses++;
+    item.injected += num(record.injectedTokens);
+    item.used += num(record.usedTokensEstimate);
+    item.sessions.add(record.sessionID);
+    item.first = Math.min(num(item.first), num(record.at));
+    item.last = Math.max(num(item.last), num(record.at));
+  }
+  return [...bySkill.values()]
+    .map((item) => ({
+      skill: item.skill,
+      uses: item.uses,
+      injected: item.injected,
+      used: item.used,
+      sessions: item.sessions.size,
+      first: item.first,
+      last: item.last,
+    }))
+    .sort((a, b) => b.used - a.used || b.uses - a.uses);
+}
+
 /** Rewrite the log keeping only records from the last `days` days. */
 export async function prune({ days = 90 } = {}) {
   const cutoff = Date.now() - num(days) * 86_400_000;
