@@ -1,87 +1,104 @@
 # SkillSentinel
 
-A tiny OpenCode 2 TUI plugin that shows which skill the agent is using.
+An OpenCode 2 TUI plugin that shows which skill the agent is using **live**, where the skill comes from, how much context it cost, and a searchable **timeline** for the whole project.
 
 ```
-Bottom bar (right):  ⠹ report
+Bottom bar (right):  ⠧ find-skills 14s +5.6k
 Right sidebar:       Skills:
-                     omarchy
-                     diagnose-crash
-                     find-skills
-                     report
+                     find-skills · user · ~+1.3k +7.2k ×1
 ```
 
-- **Bottom bar** — a spinner and the name of the skill currently being used. Only one at a time; the newest skill replaces the previous one.
-- **Right sidebar** — a plain `Skills:` list of every skill used in the current turn, one name per line, in order of first use. No branding, timestamps, or counts.
+- **Bottom bar** — spinner, skill name, elapsed seconds, and the estimated token delta since the skill started.
+- **Right sidebar** — one line per skill used in the current turn, with:
+  - **scope**: `user` (global skills), `project` (`.opencode/skills`), or `plugin`
+  - **injected**: estimated tokens from the skill body (`~+1.3k`)
+  - **used** (after the turn): estimated tokens added while the skill was active (`+7.2k`)
+  - **×N**: how many times it was used in the turn
+- **Timeline** — `/skills` opens a panel with every activation recorded for the project. `j`/`k` move, `return` opens the originating session, `f` cycles project → session → all, `esc` closes.
 
-The spinner stops when the turn ends (the agent goes idle). The sidebar list stays until you send your next prompt, then both clear.
+Token numbers are estimates: "injected" is `skill body chars ÷ 4`, and "used" is the change in session token counts between activations/turn end. Neither is provider billing.
 
 ## Install
 
-Requires OpenCode 2.x. Install from GitHub with the plugin CLI:
+Requires OpenCode 2.x.
 
 ```sh
-opencode plugin add github:kastico/skillSentinel
+opencode plugin add @kastico/skillsentinel
 ```
 
-It adds `github:kastico/skillSentinel` to `~/.config/opencode/cli.json`. The repo is private, so you need GitHub access (`gh auth login` or a configured git credential helper).
-
-Reload with `/reload` in OpenCode, or restart it. Check that it loaded with:
+This adds the package to `~/.config/opencode/cli.json`. Reload with `/reload` in OpenCode, then check:
 
 ```sh
 opencode plugin list
 ```
 
-You should see one entry with a commit hash as its version. To remove it:
+To remove it: `opencode plugin remove @kastico/skillsentinel`.
 
-```sh
-opencode plugin remove github:kastico/skillSentinel
+For local development, point the config at a checkout instead:
+
+```jsonc
+"plugins": ["/absolute/path/to/skillSentinel"]
 ```
 
-For local development you can instead point the config at a checkout:
+Use one method at a time — two entries load two instances and duplicate the indicator.
+
+## Timeline CLI
+
+The same records are written as JSONL to `~/.local/share/opencode/skillSentinel/timeline.jsonl` (override with `SKILLSENTINEL_DATA_DIR`).
 
 ```sh
-git clone git@github.com:kastico/skillSentinel.git
-# then set "plugins": ["/absolute/path/to/skillSentinel"] in ~/.config/opencode/cli.json
+npx skillsentinel timeline                       # current project
+npx skillsentinel timeline --all --since 7       # everything, last 7 days
+npx skillsentinel timeline --project skillSentinel --json
+npx skillsentinel timeline --prune 90            # keep 90 days
 ```
 
-Use one method at a time — having both entries loads two plugin instances and shows duplicate indicators.
+```
+SkillSentinel timeline — /home/kastico/Work/skillSentinel
+2 activations · 2 skills · ~2.8k injected
+
+TIME  SKILL               SCOPE     INJECTED   USED      SESSION
+21:21 omarchy             user      ~+1.8k     +3.2k     Run all skills 5 seconds apart
+21:20 report              plugin    ~+960      +1.4k     Report test
+```
 
 ## How it works
 
-The whole plugin is one file, `tui.tsx` (~107 lines).
+The whole TUI plugin is `tui.tsx`; shared logic and the store are in `src/core.js`, and the CLI is `src/cli.js`.
 
-**Detection.** It subscribes to these bus events:
-
+**Detection** (`ctx.data.on`):
 | Event | Effect |
 |---|---|
-| `session.skill.activated` | adds the skill name (uses `data.name`) |
-| `session.tool.called` | adds the skill name found in the tool input |
-| `session.execution.started` | clears both displays for the new prompt |
-| `session.execution.succeeded` / `failed` / `interrupted` | stops the spinner |
+| `session.skill.activated` | adds the skill (uses `data.name`, `data.text`) |
+| `session.tool.called` | adds the skill found in the tool input (`{ id }` / `{ name }`) |
+| `session.usage.updated` | refreshes the session token/cost snapshot |
+| `session.execution.started` | clears the current turn for that session |
+| `session.execution.succeeded` / `failed` / `interrupted` | stops the spinner and finalizes the record |
 
-On OpenCode 2, a skill tool call does **not** include a tool name in the event, and it does not emit `session.skill.activated`. It arrives as:
+On OpenCode 2 a skill tool call arrives as `{"type":"session.tool.called","data":{"input":{"id":"omarchy"}}}` — without a tool name — so detection reads the input shape. An input containing only `id` and/or `name` is treated as a skill call. State is keyed by `sessionID`, so multiple open tabs do not share a list.
 
-```json
-{"type":"session.tool.called","data":{"id":"chatcmpl-tool-...","input":{"id":"omarchy"}}}
+**Scope** comes from the skill's `path` in `ctx.data.location.skill.list()`: paths under the user config or `~/.agents`, `~/.claude`, `~/.codex` skill dirs are `user`; paths under the project are `project`; anything else is `plugin`.
+
+**Rendering** uses `prompt.footer.status`, `sidebar.content`, and `session.panel` slots. Signals do not propagate into these slots across the plugin boundary, so every state change re-registers them; a 250 ms timer re-registers only the footer to animate the spinner. A `disposed` flag stops the timer during teardown.
+
+**Storage** appends one JSON object per skill activation to a JSONL file. Records include project, session, agent, branch, scope, injected tokens, and the estimated used tokens/cost delta.
+
+## Develop
+
+```sh
+npm install
+npm run check   # syntax/JSX check
+npm test        # core unit tests
 ```
 
-So detection reads the tool input instead: an object whose only keys are `id` and/or `name` is treated as a skill, and its string value is the skill name. This avoids matching other tools, whose inputs have keys like `command` or `path`.
-
-**Timing.** A skill tool call completes in ~25 ms. Stopping the spinner on `tool.success` would make it flash for a single frame, so the indicator stays for the whole execution and stops when the turn ends. That is what "being used" means here.
-
-**Rendering.** Two TUI slots are used: `prompt.footer.status` and `sidebar.content`. Solid signals do not propagate across the plugin boundary into these slots, so every state change re-registers both slots (the old ones are disposed first). A 250 ms timer re-registers them to advance the spinner glyph. A `disposed` flag stops the timer and make rendering a no-op after teardown, so a failed cleanup cannot leave a runaway timer spamming errors.
-
-## Files
-
-- `tui.tsx` — plugin source
-- `package.json` — package metadata; exports `./tui`
+Releases are tagged `v1.1.0` style and published by GitHub Actions on tag push.
 
 ## Troubleshooting
 
-- **Several old indicators stacked up after edits.** Those are stale slots from hot-reloaded plugin instances. Quit and reopen OpenCode once; dead instances cannot be disposed from inside the plugin.
-- **A skill produced no indicator.** Detection follows tool events, so following a skill only from its description (without the skill tool) emits no event. It is best-effort, not a guarantee.
-- **Plugin does not show in `opencode plugin list`.** Check the path in `cli.json` and reload.
+- **Several old indicators stacked up after edits.** Those are stale slots from hot-reloaded plugin instances. Quit and reopen OpenCode.
+- **A skill produced no indicator.** Detection follows tool events, so a skill loaded only from its description (without the skill tool) emits no event.
+- **Plugin does not show in `opencode plugin list`.** Check the entry in `cli.json` and reload.
+- **No timeline rows.** The CLI and TUI must share the same data dir; check `SKILLSENTINEL_DATA_DIR` if you set it.
 
 ## License
 

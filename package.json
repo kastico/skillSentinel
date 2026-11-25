@@ -1,18 +1,47 @@
 {
-  "name": "skillSentinel",
-  "version": "1.0.0",
-  "description": "OpenCode TUI plugin that shows which skill is being used live and which ones were used this run.",
+  "name": "@kastico/skillsentinel",
+  "version": "1.1.0",
+  "description": "OpenCode TUI plugin that shows skills live, their context cost, and a project timeline.",
   "type": "module",
   "exports": {
     "./tui": "./tui.tsx"
+  },
+  "bin": {
+    "skillsentinel": "./src/cli.js"
+  },
+  "files": [
+    "tui.tsx",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "node --check src/core.js && node --check src/cli.js && esbuild tui.tsx --jsx=automatic --format=esm --outfile=/dev/null",
+    "test": "node --test test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kastico/skillSentinel.git"
+  },
+  "homepage": "https://github.com/kastico/skillSentinel#readme",
+  "bugs": "https://github.com/kastico/skillSentinel/issues",
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "opencode",
     "tui-plugin",
     "skills",
-    "status"
+    "status",
+    "timeline"
   ],
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
   "peerDependencies": {
     "@opencode/plugin": ">=2.0.0",
     "@opentui/core": ">=0.6.6",
