@@ -18,13 +18,13 @@ The spinner stops when the turn ends (the agent goes idle). The sidebar list sta
 
 ## Install
 
-Requires OpenCode 2.x. Add the plugin path to `~/.config/opencode/cli.json`:
+Requires OpenCode 2.x. Install from GitHub with the plugin CLI:
 
-```json
-{
-  "plugins": ["/absolute/path/to/skillSentinel"]
-}
+```sh
+opencode plugin add github:kastico/skillSentinel
 ```
+
+It adds `github:kastico/skillSentinel` to `~/.config/opencode/cli.json`. The repo is private, so you need GitHub access (`gh auth login` or a configured git credential helper).
 
 Reload with `/reload` in OpenCode, or restart it. Check that it loaded with:
 
@@ -32,7 +32,20 @@ Reload with `/reload` in OpenCode, or restart it. Check that it loaded with:
 opencode plugin list
 ```
 
-The repo is private; clone it with `git clone git@github.com:kastico/skillSentinel.git` if you have access.
+You should see one entry with a commit hash as its version. To remove it:
+
+```sh
+opencode plugin remove github:kastico/skillSentinel
+```
+
+For local development you can instead point the config at a checkout:
+
+```sh
+git clone git@github.com:kastico/skillSentinel.git
+# then set "plugins": ["/absolute/path/to/skillSentinel"] in ~/.config/opencode/cli.json
+```
+
+Use one method at a time — having both entries loads two plugin instances and shows duplicate indicators.
 
 ## How it works
 
