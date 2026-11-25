@@ -79,16 +79,16 @@ export default Plugin.define({
     const rune = () => RUNES[frame % RUNES.length];
 
     function statusText(): string {
-      const glyph = current.live ? rune() : "◇";
+      const glyph = current.live ? rune() : current.active ? "✦" : "◇";
+      const castingName = current.active ?? (current.live ? current.used.at(-1)?.name : undefined);
       if (terminalWidth() < 64) {
-        const one = current.active ?? current.used.at(-1)?.name;
-        return one ? `${glyph} ${one}` : glyph;
+        return castingName ? `${glyph} ${castingName}` : glyph;
       }
       const recent = current.used
         .slice(-4)
         .map((entry) => `${entry.name} ${clock(entry.at)}`)
         .join(" · ");
-      const casting = current.active ? `casting ${current.active} ${glyph}` : "";
+      const casting = castingName ? `casting ${castingName} ${glyph}` : "";
       const label = [casting, recent].filter(Boolean).join(" — ") || "idle";
       return `${glyph} Skillmancer: ${label}`;
     }
@@ -101,7 +101,7 @@ export default Plugin.define({
 
       disposeFooter = ctx.ui.slot({
         append: "prompt.footer.status",
-        render: () => <text fg={current.live ? bright : dim}>{statusText()}</text>,
+        render: () => <text fg={current.live || current.active ? bright : dim}>{statusText()}</text>,
       });
 
       const width = terminalWidth();
@@ -110,8 +110,10 @@ export default Plugin.define({
         append: "sidebar.content",
         render: () => (
           <box flexDirection="column">
-            <text fg={bright}>{`✦ Skillmancer ${current.live ? rune() : "◇"}`}</text>
-            {current.active ? <text fg={bright}>{`  ◈ casting ${current.active}`}</text> : null}
+            <text fg={bright}>{`✦ Skillmancer ${current.live ? rune() : current.active ? "✦" : "◇"}`}</text>
+            {current.active || current.live && current.used.length > 0 ? (
+              <text fg={bright}>{`  ◈ casting ${current.active ?? current.used.at(-1)?.name}`}</text>
+            ) : null}
             <text fg={dim}>⌖ Scope</text>
             {entries.length === 0 ? (
               <text fg={dim}>  none yet</text>
@@ -179,17 +181,11 @@ export default Plugin.define({
       ctx.data.on("session.tool.success", (event: Event) => {
         const names = namesFromContent(event?.data?.content);
         for (const name of names) add(name);
-        if (names.length > 0) {
-          current = { ...current, active: undefined };
-          refresh();
-        }
+        // Keep the cast visible for the rest of the turn so a fast skill load
+        // is actually readable in the bar. The next prompt clears it.
       }),
       ctx.data.on("session.tool.failed", (event: Event) => {
         if (event?.data?.id) skillCalls.delete(event.data.id);
-        if (current.active) {
-          current = { ...current, active: undefined };
-          refresh();
-        }
       }),
       ctx.data.on("session.step.started", () => {
         if (!current.live) {
@@ -199,19 +195,20 @@ export default Plugin.define({
       }),
       ctx.data.on("session.execution.started", () => {
         current = { used: [], activeAt: 0, live: true };
+        delete current.active;
         skillCalls.clear();
         refresh();
       }),
       ctx.data.on("session.execution.succeeded", () => {
-        current = { ...current, active: undefined, live: false };
+        current = { ...current, live: false };
         refresh();
       }),
       ctx.data.on("session.execution.failed", () => {
-        current = { ...current, active: undefined, live: false };
+        current = { ...current, live: false };
         refresh();
       }),
       ctx.data.on("session.execution.interrupted", () => {
-        current = { ...current, active: undefined, live: false };
+        current = { ...current, live: false };
         refresh();
       }),
     ];
