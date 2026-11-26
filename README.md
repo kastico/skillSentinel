@@ -22,7 +22,7 @@ Token numbers are estimates: "injected" is `skill body chars ÷ 4`, and "used" i
 
 - **Footer** — spinner, skill name in the theme's accent color, elapsed seconds, and estimated token delta.
 - **Sidebar** — `●` marks skills active in this turn with scope badge (`U` user, `P` project, `M` model/plugin-provided), injected/used tokens, and a repeat count. `○` lists up to five recent skills from the same session.
-- **`/sentinel`** — grouped summary: one row per skill with uses, estimated used tokens, and last seen. `enter` drills into that skill, `t` toggles raw events, `backspace` goes back, `j`/`k` move, `f` cycles filters, `F` toggles fullscreen, `esc` closes.
+- **`/sentinel`** — grouped summary: one row per skill with uses, estimated used tokens, and last seen. `enter` **drills** into that skill and shows only its activations (`SkillSentinel · omarchy · 28 events`, each row `time + scope + injected tokens`); from there `enter` on an event opens the originating session. `t` toggles the raw timeline of all events, `backspace` returns to the summary, `j`/`k` move, `f` cycles filters, `F` toggles fullscreen, `esc` closes.
 - **Theme-aware colors** — defaults come from the active OpenCode theme; per-role token paths or hex overrides are supported.
 - **`skillsentinel stats`** — aggregate uses and estimated cost per skill from the timeline log.
 
@@ -156,6 +156,10 @@ Releases are tagged `v1.1.0` style and published by GitHub Actions on tag push.
 - **A skill produced no indicator.** Detection follows tool events, so a skill loaded only from its description (without the skill tool) emits no event.
 - **Plugin does not show in `opencode plugin list`.** Check the entry in `cli.json` and reload.
 - **No timeline rows.** The CLI and TUI must share the same data dir; check `SKILLSENTINEL_DATA_DIR` if you set it.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 
