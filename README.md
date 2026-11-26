@@ -18,6 +18,14 @@ Right sidebar:       Skills:
 
 Token numbers are estimates: "injected" is `skill body chars ÷ 4`, and "used" is the change in session token counts between activations/turn end. Neither is provider billing.
 
+## What it shows
+
+- **Footer** — spinner, skill name in the theme's accent color, elapsed seconds, and estimated token delta.
+- **Sidebar** — `●` marks skills active in this turn with scope badge (`U` user, `P` project, `M` model/plugin-provided), injected/used tokens, and a repeat count. `○` lists up to five recent skills from the same session.
+- **`/sentinel`** — grouped summary: one row per skill with uses, estimated used tokens, and last seen. `enter` drills into that skill, `t` toggles raw events, `backspace` goes back, `j`/`k` move, `f` cycles filters, `F` toggles fullscreen, `esc` closes.
+- **Theme-aware colors** — defaults come from the active OpenCode theme; per-role token paths or hex overrides are supported.
+- **`skillsentinel stats`** — aggregate uses and estimated cost per skill from the timeline log.
+
 ## Install
 
 Requires OpenCode 2.x.
@@ -44,7 +52,7 @@ Use one method at a time — two entries load two instances and duplicate the in
 
 ## Configure
 
-Edit `~/.config/opencode/cli.json` and replace the string entry with the object form. Saving the file reloads the plugin automatically.
+Edit `~/.config/opencode/cli.json` and replace the string entry with the object form. Saving the file reloads the plugin automatically. A fully commented sample ships as `config.example.jsonc` in the package — uncomment any option to try it.
 
 ```jsonc
 {
@@ -77,7 +85,7 @@ Edit `~/.config/opencode/cli.json` and replace the string entry with the object 
 
 - `scopeStyle: "off"` hides the scope entirely; `icons` (the default) uses the letter badges above — `U` user, `P` project, `M` model/plugin-provided, `?` unknown. Override any glyph in `icons`.
 - The sidebar marks skills active in the current turn with `●` and lists up to five recent skills from the same session with `○`, so you see more than a single skill.
-- `panelStyle` overrides the width-aware defaults: `table` forces columns, `cards` forces two-line rows, `minimal` keeps only time/skill/scope.
+- `panelStyle: "summary"` is the default grouped view; `auto`, `table`, `cards`, and `minimal` keep the older chronological views.
 - Colors follow the **active OpenCode theme** by default (`text.base`, with selection using `text.action.primary.focused.base`). Any role can be set to a theme token path (for example `text.muted`) or a hex value (`#ffcc00`); invalid values fall back to theme tokens. Presets `mono` and `vivid` override all three roles at once.
 
 ## Timeline CLI

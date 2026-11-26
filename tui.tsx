@@ -217,7 +217,7 @@ function TimelinePanel(props: { panel: any }) {
     <box flexDirection="column">
       <text fg={muted} wrapMode="none" truncate>{fit(heading(), width())}</text>
       <Show when={summaryMode()}>
-        <text fg={muted} wrapMode="none" truncate>{fit("  ICON SKILL            USES   USED   LAST", width())}</text>
+        <text fg={muted} wrapMode="none" truncate>{fit("    SKILL            USES   USED   LAST", width())}</text>
         <text fg={muted} wrapMode="none" truncate>{"─".repeat(Math.min(width(), 120))}</text>
         <For each={summary()}>
           {(item, rowIndex) => <text fg={rowIndex() === index() ? active : muted} wrapMode="none" truncate>{summaryRow(item, rowIndex() === index())}</text>}

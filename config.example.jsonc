@@ -1,0 +1,55 @@
+// SkillSentinel sample config.
+// Copy this file to ~/.config/opencode/cli.json, or merge the "plugins" entry
+// into your existing cli.json. Uncomment any option to try it.
+// OpenCode watches cli.json, so changes apply without a restart.
+{
+  "$schema": "https://opencode.ai/v2/cli.json",
+  "plugins": [
+    {
+      "package": "@kastico/skillsentinel",
+      "options": {
+        // Scope badge style:
+        //   "icons" (default) -> U user, P project, M model/plugin, ? unknown
+        //   "auto"            -> word when wide, letter when narrow
+        //   "word"            -> user / project / plugin
+        //   "short"           -> U / P / M
+        //   "off"             -> hide the scope completely
+        "scopeStyle": "icons",
+
+        // Override any badge. Defaults shown here.
+        "icons": {
+          "user": "U",
+          "project": "P",
+          "plugin": "M",
+          "unknown": "?",
+          "active": "●", // skill active in this turn
+          "recent": "○"  // skill used earlier in the session
+        },
+
+        // Display names. History stays keyed by the real skill id.
+        "names": {
+          // "omarchy": "OM",
+          // "find-skills": "FS",
+          // "report": "RPT"
+        },
+
+        // /sentinel view:
+        //   "summary" (default) -> grouped per skill; enter drills in, t raw
+        //   "auto" / "table" / "cards" / "minimal" -> chronological views
+        "panelStyle": "summary",
+
+        // Colors follow the active OpenCode theme by default.
+        // A role accepts a theme token path ("text.muted") or hex ("#ffcc00").
+        "colors": {
+          // "theme" (default) | "mono" | "vivid"
+          "preset": "theme",
+          // "footer": "text.muted",
+          // "sidebar": "#8be9fd",
+          // "selected": "text.action.primary.focused.base",
+          // "name": "hue.accent.400", // skill name highlight
+          // "meta": "text.muted"      // scope, tokens, count
+        }
+      }
+    }
+  ]
+}

@@ -13,6 +13,7 @@
     "tui.tsx",
     "src",
     "README.md",
+    "config.example.jsonc",
     "LICENSE"
   ],
   "scripts": {
