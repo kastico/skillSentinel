@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { displayName, readConfig, scopeLabel } from "../src/config.js";
+import { displayName, readConfig, resolveColor, scopeLabel } from "../src/config.js";
 
 test("defaults keep the existing display", () => {
   const config = readConfig(undefined);
@@ -26,6 +26,21 @@ test("custom names, icons and scope styles", () => {
   assert.equal(scopeLabel(config, "user", false), "◎");
   assert.equal(config.panelStyle, "cards");
   assert.equal(scopeLabel(readConfig({ scopeStyle: "off" }), "user"), "");
+});
+
+test("colors follow the active theme unless overridden", () => {
+  const theme = {
+    text: {
+      base: { buffer: [255, 255, 255, 255] },
+      muted: { buffer: [167, 167, 167, 255] },
+      action: { primary: { focused: { base: { buffer: [0, 255, 0, 255] } } } },
+    },
+  };
+  assert.equal(resolveColor(theme, undefined, theme.text.base), theme.text.base);
+  assert.equal(resolveColor(theme, "text.muted", theme.text.base), theme.text.muted);
+  assert.equal(resolveColor(theme, "#ff0000", theme.text.base), "#ff0000");
+  assert.equal(resolveColor(theme, "nonsense", theme.text.base), theme.text.base);
+  assert.equal(readConfig({ colors: { footer: "text.muted" } }).colors.footer, "text.muted");
 });
 
 test("invalid values fall back, colors validate", () => {

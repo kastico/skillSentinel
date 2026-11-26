@@ -61,10 +61,10 @@ Edit `~/.config/opencode/cli.json` and replace the string entry with the object 
         },
         "panelStyle": "auto",        // "auto" | "table" | "cards" | "minimal"
         "colors": {
-          "preset": "default",       // "default" | "mono" | "vivid"
-          "footer": "#ffcc00",       // optional hex overrides; invalid → theme default
+          "preset": "theme",         // "theme" (default) | "mono" | "vivid"
+          "footer": "text.muted",    // active-theme token path or hex
           "sidebar": "#8be9fd",
-          "selected": "#50fa7b"
+          "selected": "text.action.primary.focused.base"
         }
       }
     }
@@ -74,7 +74,7 @@ Edit `~/.config/opencode/cli.json` and replace the string entry with the object 
 
 - `scopeStyle: "off"` hides the scope entirely; `icons` uses the Unicode set above (override any glyph in `icons`).
 - `panelStyle` overrides the width-aware defaults: `table` forces columns, `cards` forces two-line rows, `minimal` keeps only time/skill/scope.
-- Colors are passed to OpenTUI; invalid values fall back to theme tokens.
+- Colors follow the **active OpenCode theme** by default (`text.base`, with selection using `text.action.primary.focused.base`). Any role can be set to a theme token path (for example `text.muted`) or a hex value (`#ffcc00`); invalid values fall back to theme tokens. Presets `mono` and `vivid` override all three roles at once.
 
 ## Timeline CLI
 

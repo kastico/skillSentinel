@@ -13,7 +13,7 @@ import {
   tokensFromUsage,
   type SkillActivation,
 } from "./src/core.js";
-import { displayName, readConfig, scopeLabel } from "./src/config.js";
+import { displayName, readConfig, resolveColor, scopeLabel } from "./src/config.js";
 
 const PANEL_NAME = "skillsentinel.timeline";
 const RUNES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -65,8 +65,8 @@ function TimelinePanel(props: { panel: any }) {
   const compact = () => config.panelStyle === "cards" || (config.panelStyle === "auto" && width() < 60);
   const minimal = () => config.panelStyle === "minimal";
   const wide = () => width() >= 100;
-  const muted = config.colors.sidebar || context.theme.text.base;
-  const active = config.colors.selected || context.theme.text.base;
+  const muted = resolveColor(context.theme, config.colors.sidebar, context.theme.text.base);
+  const active = resolveColor(context.theme, config.colors.selected, (context.theme as any).text.action?.primary?.focused?.base ?? context.theme.text.base);
 
   const project = String((context as any).location?.project?.canonical ?? (context as any).location?.directory ?? "");
   void readRecords({ limit: 200 }).then(setRows);
@@ -223,7 +223,7 @@ export default Plugin.define({
         render: (props: any) => {
           const sessionID = props?.sessionID || currentSession;
           const turn = sessionID ? turns.get(sessionID) : undefined;
-          const color = config.colors.footer || ctx.theme.text.base;
+          const color = resolveColor(ctx.theme, config.colors.footer, ctx.theme.text.base);
           if (!turn?.currentName) return <text fg={color} wrapMode="none" truncate>{" "}</text>;
           const width = ctx.renderer.terminalWidth || 80;
           const spinner = RUNES[frame % RUNES.length];
@@ -253,7 +253,7 @@ export default Plugin.define({
           // The slot has no width; the sidebar is roughly 30% of the terminal.
           const width = Math.max(16, Math.floor((ctx.renderer.terminalWidth || 80) * 0.3));
           const wide = width >= 42;
-          const color = config.colors.sidebar || ctx.theme.text.base;
+          const color = resolveColor(ctx.theme, config.colors.sidebar, ctx.theme.text.base);
           const parts = (entry: Entry) => {
             const out = [displayName(config, entry.name)];
             const scope = scopeLabel(config, entry.scope, wide);
