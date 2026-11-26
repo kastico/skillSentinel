@@ -2,7 +2,7 @@ export interface Config {
   scopeStyle: "auto" | "word" | "short" | "icons" | "off";
   icons: Record<string, string>;
   names: Record<string, string>;
-  panelStyle: "auto" | "table" | "cards" | "minimal";
+  panelStyle: "summary" | "auto" | "table" | "cards" | "minimal";
   colors: { footer?: string; sidebar?: string; selected?: string; name?: string; meta?: string };
 }
 

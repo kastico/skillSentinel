@@ -10,6 +10,7 @@ import {
   formatTokens,
   injectedTokens,
   readRecords,
+  summarize,
   tokensFromUsage,
   type SkillActivation,
 } from "./src/core.js";
@@ -69,10 +70,14 @@ function TimelinePanel(props: { panel: any }) {
   const [rows, setRows] = createSignal<SkillActivation[]>([]);
   const [index, setIndex] = createSignal(0);
   const [filter, setFilter] = createSignal<"project" | "session" | "all">("project");
+  const [drill, setDrill] = createSignal<string | null>(null);
+  const [raw, setRaw] = createSignal(false);
   const width = () => props.panel.width || 80;
   const compact = () => config.panelStyle === "cards" || (config.panelStyle === "auto" && width() < 60);
   const minimal = () => config.panelStyle === "minimal";
   const wide = () => width() >= 100;
+  const summaryMode = () => config.panelStyle === "summary" && !drill() && !raw();
+  const rawMode = () => config.panelStyle === "summary" && (drill() !== null || raw());
   const muted = resolveColor(context.theme, config.colors.sidebar, context.theme.text.base);
   const active = resolveColor(context.theme, config.colors.selected, (context.theme as any).text.action?.primary?.focused?.base ?? context.theme.text.base);
 
@@ -84,14 +89,45 @@ function TimelinePanel(props: { panel: any }) {
       if (filter() === "session") return row.sessionID === props.panel.sessionID;
       return row.project === project || row.project?.includes(project);
     });
+  const summary = () => summarize(filtered());
+  const events = () => (drill() ? filtered().filter((row) => row.skill === drill()) : filtered());
+  const back = () => {
+    setDrill(null);
+    setRaw(false);
+    setIndex(0);
+  };
 
-  const move = (step: number) => setIndex((current) => Math.min(Math.max(current + step, 0), filtered().length - 1));
+  const move = (step: number) => {
+    const count = summaryMode() ? summary().length : events().length;
+    setIndex((current) => Math.min(Math.max(current + step, 0), count - 1));
+  };
   const open = () => {
-    const row = filtered()[index()];
+    if (summaryMode()) {
+      const item = summary()[index()];
+      if (item) {
+        setDrill(item.skill);
+        setIndex(0);
+      }
+      return;
+    }
+    const row = events()[index()];
     if (row) void context.ui.router.navigate({ type: "session", sessionID: row.sessionID });
   };
   const title = (row: SkillActivation) => row.sessionTitle || row.sessionID.slice(0, 8);
+  const scopeIcon = (skill: string) => scopeLabel(config, filtered().find((row) => row.skill === skill)?.scope, false);
 
+  const summaryRow = (item: ReturnType<typeof summarize>[number], selected: boolean) => {
+    const nameW = Math.max(8, Math.min(18, width() - 30));
+    return fit(
+      `${selected ? "›" : " "} ${scopeIcon(item.skill)} ${fit(displayName(config, item.skill), nameW).padEnd(nameW)} ${String(item.uses).padStart(3)}  ~${formatTokens(item.used).padStart(5)}  ${formatTime(item.last)}`,
+      width(),
+    );
+  };
+  const rawRow = (row: SkillActivation, selected: boolean) =>
+    fit(
+      `${selected ? "›" : " "} ${formatTime(row.at)} ${scopeLabel(config, row.scope, false)} ${fit(displayName(config, row.skill), Math.max(8, width() - 22))} ~+${formatTokens(row.injectedTokens)}`,
+      width(),
+    );
   const tableRow = (row: SkillActivation, selected: boolean) => {
     const withUsed = wide() && !minimal();
     const timeW = 5;
@@ -119,7 +155,19 @@ function TimelinePanel(props: { panel: any }) {
     commands: [
       { id: "skillsentinel.timeline.next", title: "Next skill", bind: "j", enabled: () => props.panel.focused, run: () => move(1) },
       { id: "skillsentinel.timeline.previous", title: "Previous skill", bind: "k", enabled: () => props.panel.focused, run: () => move(-1) },
-      { id: "skillsentinel.timeline.open", title: "Open session", bind: "return", enabled: () => props.panel.focused && filtered().length > 0, run: open },
+      { id: "skillsentinel.timeline.open", title: "Open skill or session", bind: "return", enabled: () => props.panel.focused && (summaryMode() ? summary().length > 0 : events().length > 0), run: open },
+      {
+        id: "skillsentinel.timeline.raw",
+        title: "Toggle raw timeline",
+        bind: "t",
+        enabled: () => props.panel.focused && config.panelStyle === "summary",
+        run: () => {
+          setDrill(null);
+          setRaw((value) => !value);
+          setIndex(0);
+        },
+      },
+      { id: "skillsentinel.timeline.back", title: "Back to summary", bind: "backspace", enabled: () => props.panel.focused && (drill() !== null || raw()), run: back },
       {
         id: "skillsentinel.timeline.filter",
         title: "Cycle timeline filter",
@@ -134,46 +182,74 @@ function TimelinePanel(props: { panel: any }) {
         enabled: () => props.panel.focused,
         run: () => props.panel.toggleFullscreen(),
       },
-      { id: "skillsentinel.timeline.close", title: "Close timeline", bind: "escape", enabled: () => props.panel.focused, run: () => props.panel.close() },
+      {
+        id: "skillsentinel.timeline.close",
+        title: "Close timeline",
+        bind: "escape",
+        enabled: () => props.panel.focused,
+        run: () => (drill() !== null || raw() ? back() : props.panel.close()),
+      },
     ],
   }));
 
   const stats = () => {
     const list = filtered();
-    const injected = list.reduce((sum, row) => sum + (row.injectedTokens || 0), 0);
-    return `${list.length} events · ${new Set(list.map((row) => row.skill)).size} skills · ~${formatTokens(injected)} injected · [${filter()}]`;
+    const used = list.reduce((sum, row) => sum + (row.usedTokensEstimate || 0), 0);
+    return `${list.length} events · ${new Set(list.map((row) => row.skill)).size} skills · ~${formatTokens(used)} used · [${filter()}]`;
   };
-
+  const heading = () => {
+    if (drill()) return `SkillSentinel · ${drill()} · ${events().length} events`;
+    if (summaryMode()) return `SkillSentinel · ${filter()} · ${filtered().length} events`;
+    return `SkillSentinel · timeline · ${filter()} · ${events().length} events`;
+  };
   const header = () => {
     if (minimal()) return "  TIME  SKILL        SCOPE";
     return wide() ? "  TIME  SKILL             SCOPE   INJ     USED    SESSION" : "  TIME  SKILL        S  INJ     SESSION";
   };
+  const keys = () =>
+    summaryMode()
+      ? "enter drill · t raw · j/k move · f filter · esc close"
+      : rawMode()
+        ? "backspace back · return open · j/k move · f filter · esc close"
+        : "j/k move · return open · f filter · F fullscreen · esc close";
 
   return (
     <box flexDirection="column">
-      <text fg={muted} wrapMode="none" truncate>{fit(`SkillSentinel · timeline · ${filter()} · ${filtered().length} events`, width())}</text>
-      <Show when={!compact()}>
-        <text fg={muted} wrapMode="none" truncate>{fit(header(), width())}</text>
+      <text fg={muted} wrapMode="none" truncate>{fit(heading(), width())}</text>
+      <Show when={summaryMode()}>
+        <text fg={muted} wrapMode="none" truncate>{fit("  ICON SKILL            USES   USED   LAST", width())}</text>
         <text fg={muted} wrapMode="none" truncate>{"─".repeat(Math.min(width(), 120))}</text>
+        <For each={summary()}>
+          {(item, rowIndex) => <text fg={rowIndex() === index() ? active : muted} wrapMode="none" truncate>{summaryRow(item, rowIndex() === index())}</text>}
+        </For>
       </Show>
-      <For each={filtered().slice(0, 25)}>
-        {(row, rowIndex) =>
-          compact() ? (
-            <box flexDirection="column">
-              <text fg={rowIndex() === index() ? active : muted} wrapMode="none" truncate>
-                {`${rowIndex() === index() ? "›" : " "} ${fit(formatTime(row.at), 5)} ${fit(displayName(config, row.skill), Math.max(8, width() - 24))} ${scopeLabel(config, row.scope, false)} ~+${formatTokens(row.injectedTokens)}`}
-              </text>
-              <text fg={muted} wrapMode="none" truncate>{`   ${fit(title(row), Math.max(6, width() - 5))}`}</text>
-            </box>
-          ) : (
-            <text fg={rowIndex() === index() ? active : muted} wrapMode="none" truncate>{tableRow(row, rowIndex() === index())}</text>
-          )
-        }
-      </For>
+      <Show when={rawMode()}>
+        <For each={events().slice(0, 25)}>
+          {(row, rowIndex) => <text fg={rowIndex() === index() ? active : muted} wrapMode="none" truncate>{rawRow(row, rowIndex() === index())}</text>}
+        </For>
+      </Show>
+      <Show when={config.panelStyle !== "summary"}>
+        <Show when={!compact()}>
+          <text fg={muted} wrapMode="none" truncate>{fit(header(), width())}</text>
+          <text fg={muted} wrapMode="none" truncate>{"─".repeat(Math.min(width(), 120))}</text>
+        </Show>
+        <For each={events().slice(0, 25)}>
+          {(row, rowIndex) =>
+            compact() ? (
+              <box flexDirection="column">
+                <text fg={rowIndex() === index() ? active : muted} wrapMode="none" truncate>
+                  {`${rowIndex() === index() ? "›" : " "} ${fit(formatTime(row.at), 5)} ${fit(displayName(config, row.skill), Math.max(8, width() - 24))} ${scopeLabel(config, row.scope, false)} ~+${formatTokens(row.injectedTokens)}`}
+                </text>
+                <text fg={muted} wrapMode="none" truncate>{`   ${fit(title(row), Math.max(6, width() - 5))}`}</text>
+              </box>
+            ) : (
+              <text fg={rowIndex() === index() ? active : muted} wrapMode="none" truncate>{tableRow(row, rowIndex() === index())}</text>
+            )
+          }
+        </For>
+      </Show>
       <text fg={muted} wrapMode="none" truncate>{fit(stats(), width())}</text>
-      <text fg={muted} wrapMode="none" truncate>
-        {fit("j/k move · return open · f filter · F fullscreen · esc close", width())}
-      </text>
+      <text fg={muted} wrapMode="none" truncate>{fit(keys(), width())}</text>
     </box>
   );
 }

@@ -4,12 +4,12 @@ import { displayName, readConfig, resolveColor, scopeLabel } from "../src/config
 
 test("defaults keep the existing display", () => {
   const config = readConfig(undefined);
-  assert.equal(config.scopeStyle, "auto");
-  assert.equal(config.panelStyle, "auto");
+  assert.equal(config.scopeStyle, "icons");
+  assert.equal(config.panelStyle, "summary");
   assert.equal(displayName(config, "omarchy"), "omarchy");
-  assert.equal(scopeLabel(config, "user", true), "user");
+  assert.equal(scopeLabel(config, "user", true), "U");
   assert.equal(scopeLabel(config, "user", false), "U");
-  assert.equal(config.icons.plugin, "⬡");
+  assert.equal(config.icons.plugin, "M");
   assert.equal(config.icons.active, "●");
   assert.equal(config.icons.recent, "○");
 });
@@ -24,8 +24,8 @@ test("custom names, icons and scope styles", () => {
   assert.equal(displayName(config, "omarchy"), "OM");
   assert.equal(displayName(config, "report"), "report");
   assert.equal(scopeLabel(config, "plugin"), "★");
-  assert.equal(scopeLabel(config, "user"), "◎");
-  assert.equal(scopeLabel(config, "user", false), "◎");
+  assert.equal(scopeLabel(config, "user"), "U");
+  assert.equal(scopeLabel(config, "user", false), "U");
   assert.equal(config.panelStyle, "cards");
   assert.equal(scopeLabel(readConfig({ scopeStyle: "off" }), "user"), "");
 });
@@ -51,8 +51,8 @@ test("invalid values fall back, colors validate", () => {
     panelStyle: "nope",
     colors: { preset: "vivid", footer: "red", sidebar: "#8be9fd" },
   });
-  assert.equal(config.scopeStyle, "auto");
-  assert.equal(config.panelStyle, "auto");
+  assert.equal(config.scopeStyle, "icons");
+  assert.equal(config.panelStyle, "summary");
   assert.equal(config.colors.footer, "#ffcc00");
   assert.equal(config.colors.sidebar, "#8be9fd");
   assert.equal(config.colors.selected, "#50fa7b");

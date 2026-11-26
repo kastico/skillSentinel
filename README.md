@@ -14,7 +14,7 @@ Right sidebar:       Skills:
   - **injected**: estimated tokens from the skill body (`~+1.3k`)
   - **used** (after the turn): estimated tokens added while the skill was active (`+7.2k`)
   - **×N**: how many times it was used in the turn
-- **Timeline** — `/sentinel` opens a width-aware table of every activation recorded for the project. `j`/`k` move, `return` opens the originating session, `f` cycles project → session → all, `F` toggles fullscreen, `esc` closes. Narrow panels switch to two-line cards; cells are clipped, never wrapped.
+- **Timeline** — `/sentinel` opens a compact grouped summary: one row per skill with uses, estimated cost, and last seen. `enter` drills into that skill's events, `t` toggles the raw timeline, `backspace` goes back, `j`/`k` move, `f` cycles project → session → all, `F` toggles fullscreen, `esc` closes. Set `panelStyle` to `table`, `cards`, or `minimal` for the older chronological views.
 
 Token numbers are estimates: "injected" is `skill body chars ÷ 4`, and "used" is the change in session token counts between activations/turn end. Neither is provider billing.
 
@@ -52,15 +52,15 @@ Edit `~/.config/opencode/cli.json` and replace the string entry with the object 
     {
       "package": "@kastico/skillsentinel",
       "options": {
-        "scopeStyle": "icons",       // "auto" | "word" | "short" | "icons" | "off"
-        "icons": {                   // optional; Unicode defaults
-          "user": "◎", "project": "▣", "plugin": "⬡", "unknown": "◇",
+        "scopeStyle": "icons",       // "icons" (default) | "auto" | "word" | "short" | "off"
+        "icons": {                   // letter badges: U=user, P=project, M=model/plugin
+          "user": "U", "project": "P", "plugin": "M", "unknown": "?",
           "active": "●", "recent": "○"
         },
         "names": {                   // display names; history stays keyed by real skill id
           "omarchy": "OM", "find-skills": "FS"
         },
-        "panelStyle": "auto",        // "auto" | "table" | "cards" | "minimal"
+        "panelStyle": "summary",     // "summary" (default) | "auto" | "table" | "cards" | "minimal"
         "colors": {
           "preset": "theme",         // "theme" (default) | "mono" | "vivid"
           "footer": "text.muted",    // active-theme token path or hex
@@ -75,7 +75,7 @@ Edit `~/.config/opencode/cli.json` and replace the string entry with the object 
 }
 ```
 
-- `scopeStyle: "off"` hides the scope entirely; `icons` uses the Unicode set above (override any glyph in `icons`).
+- `scopeStyle: "off"` hides the scope entirely; `icons` (the default) uses the letter badges above — `U` user, `P` project, `M` model/plugin-provided, `?` unknown. Override any glyph in `icons`.
 - The sidebar marks skills active in the current turn with `●` and lists up to five recent skills from the same session with `○`, so you see more than a single skill.
 - `panelStyle` overrides the width-aware defaults: `table` forces columns, `cards` forces two-line rows, `minimal` keeps only time/skill/scope.
 - Colors follow the **active OpenCode theme** by default (`text.base`, with selection using `text.action.primary.focused.base`). Any role can be set to a theme token path (for example `text.muted`) or a hex value (`#ffcc00`); invalid values fall back to theme tokens. Presets `mono` and `vivid` override all three roles at once.

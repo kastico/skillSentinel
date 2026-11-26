@@ -1,8 +1,9 @@
 import { shortScope } from "./core.js";
 
 const SCOPE_STYLES = ["auto", "word", "short", "icons", "off"];
-const PANEL_STYLES = ["auto", "table", "cards", "minimal"];
-const DEFAULT_ICONS = { user: "◎", project: "▣", plugin: "⬡", unknown: "◇", active: "●", recent: "○" };
+const PANEL_STYLES = ["summary", "auto", "table", "cards", "minimal"];
+// Letter badges are single-width and need no legend: U=user, P=project, M=model/plugin.
+const DEFAULT_ICONS = { user: "U", project: "P", plugin: "M", unknown: "?", active: "●", recent: "○" };
 const PRESETS = {
   default: {},
   theme: {},
@@ -33,10 +34,10 @@ export function readConfig(options) {
     }
   }
   return {
-    scopeStyle: SCOPE_STYLES.includes(raw.scopeStyle) ? raw.scopeStyle : "auto",
+    scopeStyle: SCOPE_STYLES.includes(raw.scopeStyle) ? raw.scopeStyle : "icons",
     icons: { ...DEFAULT_ICONS, ...stringMap(raw.icons) },
     names: stringMap(raw.names),
-    panelStyle: PANEL_STYLES.includes(raw.panelStyle) ? raw.panelStyle : "auto",
+    panelStyle: PANEL_STYLES.includes(raw.panelStyle) ? raw.panelStyle : "summary",
     colors,
   };
 }
