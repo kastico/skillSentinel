@@ -3,7 +3,7 @@ export interface Config {
   icons: Record<string, string>;
   names: Record<string, string>;
   panelStyle: "auto" | "table" | "cards" | "minimal";
-  colors: { footer?: string; sidebar?: string; selected?: string };
+  colors: { footer?: string; sidebar?: string; selected?: string; name?: string; meta?: string };
 }
 
 export declare function readConfig(options: unknown): Config;

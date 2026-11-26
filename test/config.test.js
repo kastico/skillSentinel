@@ -10,6 +10,8 @@ test("defaults keep the existing display", () => {
   assert.equal(scopeLabel(config, "user", true), "user");
   assert.equal(scopeLabel(config, "user", false), "U");
   assert.equal(config.icons.plugin, "⬡");
+  assert.equal(config.icons.active, "●");
+  assert.equal(config.icons.recent, "○");
 });
 
 test("custom names, icons and scope styles", () => {

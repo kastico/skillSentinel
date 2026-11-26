@@ -46,6 +46,14 @@ function newTurn(): Turn {
   return { entries: [], currentName: "", currentStarted: 0, currentStartTokens: 0, pendingStartTokens: 0, pendingStartCost: 0 };
 }
 
+function nameColor(theme: any, config: ReturnType<typeof readConfig>) {
+  return resolveColor(theme, config.colors.name, theme.hue?.accent?.[400] ?? theme.text.action?.primary?.base ?? theme.text.base);
+}
+
+function metaColor(theme: any, config: ReturnType<typeof readConfig>) {
+  return resolveColor(theme, config.colors.meta, theme.text.muted ?? theme.text.base);
+}
+
 // The skill tool sends only { id } or { name } as its input — no tool name on the event.
 function skillName(input: unknown): string | undefined {
   if (!input || typeof input !== "object") return undefined;
@@ -178,6 +186,7 @@ export default Plugin.define({
     const config = readConfig((ctx as any).options);
 
     const turns = new Map<string, Turn>();
+    const sessionHistory = new Map<string, string[]>();
     const latestTokens = new Map<string, number>();
     const latestCost = new Map<string, number>();
     const skillMeta = new Map<string, SkillMeta>();
@@ -224,20 +233,21 @@ export default Plugin.define({
           const sessionID = props?.sessionID || currentSession;
           const turn = sessionID ? turns.get(sessionID) : undefined;
           const color = resolveColor(ctx.theme, config.colors.footer, ctx.theme.text.base);
+          const highlighted = nameColor(ctx.theme, config);
           if (!turn?.currentName) return <text fg={color} wrapMode="none" truncate>{" "}</text>;
           const width = ctx.renderer.terminalWidth || 80;
           const spinner = RUNES[frame % RUNES.length];
           const name = displayName(config, turn.currentName);
+          if (width < 80) return <text fg={color} wrapMode="none" truncate>{`${spinner} `}<span fg={highlighted}>{name.slice(0, 3)}</span></text>;
           // The status slot is only a slice of the footer row; leave room for host indicators.
-          if (width < 80) return <text fg={color} wrapMode="none" truncate>{`${spinner} ${name.slice(0, 3)}`}</text>;
           const room = width >= 110 ? 24 : 12;
           const details = props?.showDetails !== false;
           const elapsed = `${Math.max(0, Math.floor((Date.now() - turn.currentStarted) / 1000))}s`;
           const delta = formatDelta(snapshot(sessionID) - turn.currentStartTokens);
-          let line = `${spinner} ${name}`;
-          if (details && line.length + elapsed.length + 1 <= room) line += ` ${elapsed}`;
-          if (details && line.length + delta.length + 1 <= room) line += ` ${delta}`;
-          return <text fg={color} wrapMode="none" truncate>{fit(line, room)}</text>;
+          let suffix = details ? ` ${elapsed}` : "";
+          if (details && name.length + suffix.length + delta.length + 2 <= room) suffix += ` ${delta}`;
+          const shown = fit(name, Math.max(3, room - suffix.length - 2));
+          return <text fg={color} wrapMode="none" truncate>{`${spinner} `}<span fg={highlighted}>{shown}</span>{suffix}</text>;
         },
       });
     }
@@ -254,8 +264,10 @@ export default Plugin.define({
           const width = Math.max(16, Math.floor((ctx.renderer.terminalWidth || 80) * 0.3));
           const wide = width >= 42;
           const color = resolveColor(ctx.theme, config.colors.sidebar, ctx.theme.text.base);
+          const highlighted = nameColor(ctx.theme, config);
+          const meta = metaColor(ctx.theme, config);
           const parts = (entry: Entry) => {
-            const out = [displayName(config, entry.name)];
+            const out = [];
             const scope = scopeLabel(config, entry.scope, wide);
             if (scope) out.push(scope);
             if (wide) {
@@ -265,11 +277,21 @@ export default Plugin.define({
             out.push(`×${entry.count}`);
             return out.join(" · ");
           };
+          const currentNames = new Set((turn?.entries ?? []).map((entry) => entry.name));
+          const recent = (sessionHistory.get(sessionID) ?? []).filter((name) => !currentNames.has(name)).slice(-5).reverse();
           return (
             <box flexDirection="column">
               <text fg={color} wrapMode="none" truncate>Skills:</text>
               <For each={turn?.entries ?? []}>
-                {(entry) => <text fg={color} wrapMode="none" truncate>{fit(parts(entry), width)}</text>}
+                {(entry) => (
+                  <text fg={meta} wrapMode="none" truncate>
+                    <span fg={highlighted}>{`${config.icons.active} ${displayName(config, entry.name)}`}</span>
+                    {` · ${parts(entry)}`}
+                  </text>
+                )}
+              </For>
+              <For each={recent}>
+                {(name) => <text fg={meta} wrapMode="none" truncate>{fit(`${config.icons.recent} ${displayName(config, name)} · recent`, width)}</text>}
               </For>
             </box>
           );
@@ -326,6 +348,9 @@ export default Plugin.define({
       const name = rawName.trim();
       if (!sessionID || !name) return;
       currentSession = sessionID;
+      const history = sessionHistory.get(sessionID) ?? [];
+      if (!history.includes(name)) history.push(name);
+      sessionHistory.set(sessionID, history);
       const turn = turns.get(sessionID) ?? newTurn();
       const tokens = snapshot(sessionID);
       finalize(turn, sessionID, tokens);

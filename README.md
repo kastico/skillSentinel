@@ -54,7 +54,8 @@ Edit `~/.config/opencode/cli.json` and replace the string entry with the object 
       "options": {
         "scopeStyle": "icons",       // "auto" | "word" | "short" | "icons" | "off"
         "icons": {                   // optional; Unicode defaults
-          "user": "◎", "project": "▣", "plugin": "⬡", "unknown": "?"
+          "user": "◎", "project": "▣", "plugin": "⬡", "unknown": "◇",
+          "active": "●", "recent": "○"
         },
         "names": {                   // display names; history stays keyed by real skill id
           "omarchy": "OM", "find-skills": "FS"
@@ -64,7 +65,9 @@ Edit `~/.config/opencode/cli.json` and replace the string entry with the object 
           "preset": "theme",         // "theme" (default) | "mono" | "vivid"
           "footer": "text.muted",    // active-theme token path or hex
           "sidebar": "#8be9fd",
-          "selected": "text.action.primary.focused.base"
+          "selected": "text.action.primary.focused.base",
+          "name": "hue.accent.400",  // skill name highlight
+          "meta": "text.muted"       // scope, tokens, count
         }
       }
     }
@@ -73,6 +76,7 @@ Edit `~/.config/opencode/cli.json` and replace the string entry with the object 
 ```
 
 - `scopeStyle: "off"` hides the scope entirely; `icons` uses the Unicode set above (override any glyph in `icons`).
+- The sidebar marks skills active in the current turn with `●` and lists up to five recent skills from the same session with `○`, so you see more than a single skill.
 - `panelStyle` overrides the width-aware defaults: `table` forces columns, `cards` forces two-line rows, `minimal` keeps only time/skill/scope.
 - Colors follow the **active OpenCode theme** by default (`text.base`, with selection using `text.action.primary.focused.base`). Any role can be set to a theme token path (for example `text.muted`) or a hex value (`#ffcc00`); invalid values fall back to theme tokens. Presets `mono` and `vivid` override all three roles at once.
 

@@ -2,12 +2,12 @@ import { shortScope } from "./core.js";
 
 const SCOPE_STYLES = ["auto", "word", "short", "icons", "off"];
 const PANEL_STYLES = ["auto", "table", "cards", "minimal"];
-const DEFAULT_ICONS = { user: "◎", project: "▣", plugin: "⬡", unknown: "?" };
+const DEFAULT_ICONS = { user: "◎", project: "▣", plugin: "⬡", unknown: "◇", active: "●", recent: "○" };
 const PRESETS = {
   default: {},
   theme: {},
-  mono: { footer: "#b0b0b0", sidebar: "#b0b0b0", selected: "#ffffff" },
-  vivid: { footer: "#ffcc00", sidebar: "#8be9fd", selected: "#50fa7b" },
+  mono: { footer: "#b0b0b0", sidebar: "#b0b0b0", selected: "#ffffff", name: "#ffffff", meta: "#b0b0b0" },
+  vivid: { footer: "#ffcc00", sidebar: "#8be9fd", selected: "#50fa7b", name: "#ffcc00", meta: "#8be9fd" },
 };
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 const TOKEN_PATH = /^(?:text|background|border|syntax|markdown|hue)(?:\.[A-Za-z0-9_-]+)+$/;
@@ -27,7 +27,7 @@ export function readConfig(options) {
   const rawColors = raw.colors && typeof raw.colors === "object" ? raw.colors : {};
   const preset = Object.hasOwn(PRESETS, rawColors.preset) ? rawColors.preset : "theme";
   const colors = { ...PRESETS[preset] };
-  for (const key of ["footer", "sidebar", "selected"]) {
+  for (const key of ["footer", "sidebar", "selected", "name", "meta"]) {
     if (typeof rawColors[key] === "string" && (HEX.test(rawColors[key]) || TOKEN_PATH.test(rawColors[key]))) {
       colors[key] = rawColors[key];
     }
